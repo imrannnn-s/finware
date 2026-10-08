@@ -110,7 +110,8 @@ const ICONS = {
    dwm-schema-reference.sql, /api/warehouse/* and /api/analytics/*). */
 const NAV = [
   {group:'Overview', items:[
-    {id:'dashboard', label:'Dashboard', icon:'dashboard'}
+    {id:'dashboard', label:'Dashboard', icon:'dashboard'},
+    {id:'about', label:'About & ML Model', icon:'file'}
   ]},
   {group:'Analytics', items:[
     {id:'transactions', label:'Transactions', icon:'card'},
@@ -124,7 +125,8 @@ const NAV = [
   {group:'Insights', items:[
     {id:'spending', label:'Spending Behaviour', icon:'dashboard'},
     {id:'anomaly', label:'Anomaly Alerts', icon:'bell'},
-    {id:'recommendations', label:'Recommendations', icon:'bullet'}
+    {id:'recommendations', label:'Recommendations', icon:'bullet'},
+    {id:'about', label:'About & ML Model', icon:'file'}
   ]},
   {group:'Output', items:[
     {id:'reports', label:'Reports', icon:'file'}
@@ -133,7 +135,7 @@ const NAV = [
 const PAGE_TITLES = {dashboard:'Dashboard', transactions:'Transactions',
   ca:'CA Sessions', user:'User Analysis', bank:'Bank Analysis', category:'Category Analysis', time:'Time Analysis',
   custom:'Custom Analysis', spending:'Spending Behaviour', anomaly:'Anomaly Alerts',
-  recommendations:'Recommendations', reports:'Reports', profile:'Profile & settings'};
+  recommendations:'Recommendations', reports:'Reports', about:'About & ML Model', profile:'Profile & settings'};
 
 function buildNav(){
   const nav = $('#sidebar-nav');
