@@ -3,9 +3,8 @@ const fs = require('fs');
 const { DatabaseSync } = require('node:sqlite');
 const bcrypt = require('bcryptjs');
 
-const DATA_DIR = path.join(__dirname, '..', 'data');
-const DB_PATH = path.join(DATA_DIR, 'finware.sqlite');
-fs.mkdirSync(DATA_DIR, { recursive: true });
+const DB_PATH = process.env.FINWARE_DB_PATH || path.join(__dirname, '..', 'data', 'finware.sqlite');
+fs.mkdirSync(path.dirname(DB_PATH), { recursive: true });
 
 const db = new DatabaseSync(DB_PATH);
 db.exec('PRAGMA journal_mode = WAL');
@@ -15,11 +14,44 @@ db.exec('PRAGMA foreign_keys = ON');
 const schemaSql = fs.readFileSync(path.join(__dirname, '..', 'database', 'schema.sqlite.sql'), 'utf8');
 db.exec(schemaSql);
 
+migrateAppUsers(db);
+
 // Seed once, on first run.
 const alreadySeeded = db.prepare('SELECT COUNT(*) AS c FROM dim_user').get().c > 0;
 if (!alreadySeeded) {
   seed(db);
   console.log('Seeded the database with the sample DWM dataset.');
+}
+
+/**
+ * Bring app_users up to the role-based shape without touching existing rows'
+ * credentials. Older databases stored a free-text role (the seeded admin's
+ * "Data Warehouse Administrator"); before this change the only way to get an
+ * app_users row was that admin seed, so any non-standard role is an admin. The
+ * old text is kept as the display title.
+ */
+function migrateAppUsers(db) {
+  const columns = new Set(db.prepare('PRAGMA table_info(app_users)').all().map((c) => c.name));
+  if (!columns.has('title')) db.exec('ALTER TABLE app_users ADD COLUMN title TEXT');
+  if (!columns.has('customer_id')) {
+    db.exec('ALTER TABLE app_users ADD COLUMN customer_id TEXT REFERENCES dim_user(user_id) ON DELETE SET NULL');
+  }
+  if (!columns.has('created_at')) db.exec('ALTER TABLE app_users ADD COLUMN created_at TEXT');
+
+  db.exec(`UPDATE app_users SET title = COALESCE(title, role), role = 'admin' WHERE role NOT IN ('admin', 'user')`);
+  db.exec(`UPDATE app_users SET created_at = datetime('now') WHERE created_at IS NULL`);
+
+  // Defence in depth: the database itself refuses any role outside the two
+  // supported ones, whatever code path tries to write it.
+  db.exec(`
+    CREATE TRIGGER IF NOT EXISTS app_users_role_insert BEFORE INSERT ON app_users
+    WHEN NEW.role NOT IN ('admin', 'user')
+    BEGIN SELECT RAISE(ABORT, 'invalid role'); END;
+    CREATE TRIGGER IF NOT EXISTS app_users_role_update BEFORE UPDATE OF role ON app_users
+    WHEN NEW.role NOT IN ('admin', 'user')
+    BEGIN SELECT RAISE(ABORT, 'invalid role'); END;
+    CREATE UNIQUE INDEX IF NOT EXISTS idx_app_users_customer ON app_users(customer_id) WHERE customer_id IS NOT NULL;
+  `);
 }
 
 function seed(db) {
@@ -96,10 +128,11 @@ function seed(db) {
       data.banks.forEach((b) => insertBankMaster.run(b.id, b.name, bankTypeById.get(b.typeId)));
 
       const passwordHash = bcrypt.hashSync(data.admin.password, 10);
-      db.prepare('INSERT INTO app_users (email, password_hash, name, role) VALUES (?, ?, ?, ?)').run(
+      db.prepare('INSERT INTO app_users (email, password_hash, name, role, title) VALUES (?, ?, ?, ?, ?)').run(
         data.admin.email,
         passwordHash,
         data.admin.name,
+        'admin',
         data.admin.role
       );
 

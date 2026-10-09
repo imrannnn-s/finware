@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { createAuth } = require('../middleware/auth');
 
 // These endpoints aren't used by the dashboard UI (which hydrates once from
 // /api/warehouse/all and filters client-side for snappy interaction). They're
@@ -10,7 +10,9 @@ const { requireAuth } = require('../middleware/auth');
 
 module.exports = function analyticsRoutes(db) {
   const router = express.Router();
-  router.use(requireAuth);
+  // Portfolio-wide analytics: administrators only.
+  const { requireAuth, requireAdmin } = createAuth(db);
+  router.use(requireAuth, requireAdmin);
 
   // ---- STAR: fact joined straight to a denormalized-style dimension ----
   router.get('/star/category-summary', (req, res) => {

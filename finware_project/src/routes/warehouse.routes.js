@@ -1,12 +1,23 @@
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { createAuth, ROLES } = require('../middleware/auth');
 
 module.exports = function warehouseRoutes(db) {
   const router = express.Router();
+  const { requireAuth, requireAdmin } = createAuth(db);
   router.use(requireAuth);
+
+  // Admins see the whole warehouse. A 'user' only ever sees the customer
+  // record linked to their account (none until an admin links one); banks,
+  // categories and dates are shared reference data.
+  function customerScope(req) {
+    if (req.user.role === ROLES.ADMIN) return { sql: '', params: [] };
+    return { sql: 'WHERE {col} = ?', params: [req.user.customerId || '\u0000none'] };
+  }
 
   // Everything the dashboard needs to render, shaped exactly as the UI expects it.
   router.get('/all', (req, res) => {
+    const scope = customerScope(req);
+    const where = (col) => scope.sql.replace('{col}', col);
     const users = db
       .prepare(
         `SELECT u.user_id AS id, u.user_name AS name, city.city_name AS city,
@@ -15,9 +26,10 @@ module.exports = function warehouseRoutes(db) {
          JOIN dim_city city ON city.city_id = u.city_id
          JOIN dim_income_bracket income ON income.income_id = u.income_id
          JOIN dim_account_type acct ON acct.account_type_id = u.account_type_id
+         ${where('u.user_id')}
          ORDER BY u.user_id`
       )
-      .all();
+      .all(...scope.params);
 
     const banks = db
       .prepare(
@@ -48,9 +60,10 @@ module.exports = function warehouseRoutes(db) {
                 t.category_id AS categoryId, t.amount AS amount, t.txn_type AS type
          FROM fact_transactions t
          JOIN dim_date d ON d.date_id = t.date_id
+         ${where('t.user_id')}
          ORDER BY d.full_date, t.txn_id`
       )
-      .all();
+      .all(...scope.params);
 
     const caSessions = db
       .prepare(
@@ -59,9 +72,10 @@ module.exports = function warehouseRoutes(db) {
          FROM fact_ca_sessions s
          JOIN dim_date d ON d.date_id = s.date_id
          JOIN dim_ca c ON c.ca_id = s.ca_id
+         ${where('s.user_id')}
          ORDER BY d.full_date, s.session_id`
       )
-      .all();
+      .all(...scope.params);
 
     res.json({ users, banks, categories, transactions, caSessions, dimDate });
   });
@@ -69,7 +83,7 @@ module.exports = function warehouseRoutes(db) {
   // Raw OLTP mirrors. Internal warehouse detail - kept as a queryable endpoint
   // for the DWM layer even though the UI no longer exposes a source-table page.
   // Table names come from a fixed allowlist, never from the request directly.
-  router.get('/source/:table', (req, res) => {
+  router.get('/source/:table', requireAdmin, (req, res) => {
     const table = { 'transaction-raw': 'transaction_raw', 'user-master': 'user_master', 'bank-master': 'bank_master' }[
       req.params.table
     ];
