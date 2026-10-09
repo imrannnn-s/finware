@@ -44,18 +44,66 @@ function resolveJwtSecret() {
 
 const JWT_SECRET = resolveJwtSecret();
 
-function requireAuth(req, res, next) {
-  const header = req.headers.authorization || '';
-  const token = header.startsWith('Bearer ') ? header.slice(7) : null;
-  if (!token) {
-    return res.status(401).json({ error: 'Missing bearer token.' });
-  }
-  try {
-    req.user = jwt.verify(token, JWT_SECRET);
-    return next();
-  } catch (err) {
-    return res.status(401).json({ error: 'Invalid or expired token.' });
-  }
+const ROLES = Object.freeze({ ADMIN: 'admin', USER: 'user' });
+
+/** The only shape of an account that ever leaves the server. */
+function publicUser(row) {
+  return {
+    id: row.id,
+    email: row.email,
+    name: row.name,
+    role: row.role,
+    title: row.title || (row.role === ROLES.ADMIN ? 'Administrator' : 'User'),
+    customerId: row.customer_id || null
+  };
 }
 
-module.exports = { requireAuth, JWT_SECRET };
+function signToken(row) {
+  return jwt.sign({ sub: row.id }, JWT_SECRET, { expiresIn: '8h' });
+}
+
+/**
+ * Build the auth middleware bound to a database.
+ *
+ * requireAuth verifies the bearer token and then re-loads the account from
+ * app_users on every request, so the role and customer link always come from
+ * the database - never from the token or the client - and deleting an account
+ * or changing its role takes effect immediately.
+ */
+function createAuth(db) {
+  const findById = db.prepare('SELECT id, email, name, role, title, customer_id FROM app_users WHERE id = ?');
+
+  function requireAuth(req, res, next) {
+    const header = req.headers.authorization || '';
+    const token = header.startsWith('Bearer ') ? header.slice(7) : null;
+    if (!token) {
+      return res.status(401).json({ error: 'Missing bearer token.' });
+    }
+    let payload;
+    try {
+      payload = jwt.verify(token, JWT_SECRET);
+    } catch (err) {
+      return res.status(401).json({ error: 'Invalid or expired token.' });
+    }
+    const row = Number.isInteger(Number(payload.sub)) ? findById.get(Number(payload.sub)) : null;
+    if (!row) {
+      return res.status(401).json({ error: 'Invalid or expired token.' });
+    }
+    req.user = publicUser(row);
+    return next();
+  }
+
+  function requireRole(...roles) {
+    return (req, res, next) => {
+      if (!req.user) return res.status(401).json({ error: 'Missing bearer token.' });
+      if (!roles.includes(req.user.role)) {
+        return res.status(403).json({ error: 'You do not have permission to access this resource.' });
+      }
+      return next();
+    };
+  }
+
+  return { requireAuth, requireRole, requireAdmin: requireRole(ROLES.ADMIN) };
+}
+
+module.exports = { createAuth, publicUser, signToken, ROLES, JWT_SECRET };

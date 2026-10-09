@@ -1,5 +1,5 @@
 const express = require('express');
-const { requireAuth } = require('../middleware/auth');
+const { createAuth, ROLES } = require('../middleware/auth');
 const engine = require('../insights/engine');
 
 /**
@@ -13,7 +13,39 @@ const engine = require('../insights/engine');
 
 module.exports = function insightsRoutes(db) {
   const router = express.Router();
+  const { requireAuth, requireAdmin } = createAuth(db);
   router.use(requireAuth);
+
+  const isAdmin = (req) => req.user.role === ROLES.ADMIN;
+
+  /**
+   * Object-level authorization: an admin may read any customer, a 'user' only
+   * the warehouse customer linked to their own account.
+   */
+  function canAccessCustomer(req, customerId) {
+    return isAdmin(req) || (!!req.user.customerId && req.user.customerId === customerId);
+  }
+
+  function forbidCustomer(res) {
+    return res.status(403).json({ error: 'You can only view your own records.' });
+  }
+
+  function customerGuard(req, res, next) {
+    if (!canAccessCustomer(req, req.params.user)) return forbidCustomer(res);
+    return next();
+  }
+
+  // Scoring internals (baselines, thresholds, deviation statistics) are
+  // admin-only; users get the outcome and the plain-language reason.
+  const USER_HIDDEN_RISK_FIELDS = [
+    'ratioToBaseline', 'baseline', 'baselineSource', 'baselineSample', 'deviationFromAverage', 'bands'
+  ];
+  function forUser(req, obj) {
+    if (isAdmin(req) || !obj) return obj;
+    const copy = { ...obj };
+    for (const key of USER_HIDDEN_RISK_FIELDS) delete copy[key];
+    return copy;
+  }
 
   const TXN_SQL = `
     SELECT t.txn_id      AS id,
@@ -168,7 +200,7 @@ module.exports = function insightsRoutes(db) {
   // -------------------------------------------------------------------------
   // GET /api/insights/summary
   // -------------------------------------------------------------------------
-  router.get('/summary', (req, res) => {
+  router.get('/summary', requireAdmin, (req, res) => {
     const ctx = buildContext();
     const counts = anomalyIndex(ctx.scores);
     const total = ctx.scores.size;
@@ -246,7 +278,7 @@ module.exports = function insightsRoutes(db) {
   // -------------------------------------------------------------------------
   // GET /api/insights/customer/:user
   // -------------------------------------------------------------------------
-  router.get('/customer/:user', (req, res) => {
+  router.get('/customer/:user', customerGuard, (req, res) => {
     const ctx = buildContext();
     const user = requireUser(ctx, res, req.params.user);
     if (!user) return;
@@ -305,7 +337,7 @@ module.exports = function insightsRoutes(db) {
   // -------------------------------------------------------------------------
   // GET /api/insights/customer/:user/spending
   // -------------------------------------------------------------------------
-  router.get('/customer/:user/spending', (req, res) => {
+  router.get('/customer/:user/spending', customerGuard, (req, res) => {
     const ctx = buildContext();
     const user = requireUser(ctx, res, req.params.user);
     if (!user) return;
@@ -351,7 +383,7 @@ module.exports = function insightsRoutes(db) {
   // -------------------------------------------------------------------------
   // GET /api/insights/customer/:user/recommendations
   // -------------------------------------------------------------------------
-  router.get('/customer/:user/recommendations', (req, res) => {
+  router.get('/customer/:user/recommendations', customerGuard, (req, res) => {
     const ctx = buildContext();
     const user = requireUser(ctx, res, req.params.user);
     if (!user) return;
@@ -399,8 +431,14 @@ module.exports = function insightsRoutes(db) {
   // Supports ?user=U01&status=ANOMALOUS&minScore=40&limit=100
   // -------------------------------------------------------------------------
   router.get('/anomalies', (req, res) => {
+    const { status, minScore, limit } = req.query;
+    let { user } = req.query;
+    if (!isAdmin(req)) {
+      if (user && !canAccessCustomer(req, String(user))) return forbidCustomer(res);
+      if (!req.user.customerId) return forbidCustomer(res);
+      user = req.user.customerId;
+    }
     const ctx = buildContext();
-    const { user, status, minScore, limit } = req.query;
 
     if (user) {
       const known = findUser(ctx, String(user));
@@ -419,10 +457,14 @@ module.exports = function insightsRoutes(db) {
     // Highest risk first, deterministic on ties.
     rows.sort((a, b) => b.score.score - a.score.score || a.txn.id.localeCompare(b.txn.id));
 
-    const counts = anomalyIndex(ctx.scores);
+    // Users' counts cover only their own transactions, never the portfolio.
+    const scopedScores = isAdmin(req)
+      ? ctx.scores
+      : new Map((ctx.byUser.get(String(user)) || []).filter((t) => ctx.scores.has(t.id)).map((t) => [t.id, ctx.scores.get(t.id)]));
+    const counts = anomalyIndex(scopedScores);
     const anomalous = rows.filter((r) => r.score.status === 'ANOMALOUS');
 
-    let payload = rows.map((r) => ({
+    let payload = rows.map((r) => forUser(req, {
       txnId: r.txn.id,
       userId: r.txn.userId,
       userName: (findUser(ctx, r.txn.userId) || {}).name,
@@ -450,10 +492,10 @@ module.exports = function insightsRoutes(db) {
     res.json({
       sufficientHistory: true,
       counts: {
-        totalTransactions: ctx.scores.size,
+        totalTransactions: scopedScores.size,
         normalCount: counts.normalCount,
         anomalousCount: counts.anomalousCount,
-        anomalyRate: ctx.scores.size ? engine.round2((counts.anomalousCount / ctx.scores.size) * 100) : 0,
+        anomalyRate: scopedScores.size ? engine.round2((counts.anomalousCount / scopedScores.size) * 100) : 0,
         returned: payload.length,
         matchingFilters: payload.length,
         truncated: capped,
@@ -476,7 +518,9 @@ module.exports = function insightsRoutes(db) {
           reason: r.score.reason
         })),
       transactions: payload,
-      bands: { low: `0-${engine.CONFIG.RISK_MEDIUM_AT - 1}`, medium: `${engine.CONFIG.RISK_MEDIUM_AT}-${engine.CONFIG.RISK_HIGH_AT - 1}`, high: `${engine.CONFIG.RISK_HIGH_AT}-100` }
+      ...(isAdmin(req)
+        ? { bands: { low: `0-${engine.CONFIG.RISK_MEDIUM_AT - 1}`, medium: `${engine.CONFIG.RISK_MEDIUM_AT}-${engine.CONFIG.RISK_HIGH_AT - 1}`, high: `${engine.CONFIG.RISK_HIGH_AT}-100` } }
+        : {})
     });
   });
 
@@ -489,6 +533,7 @@ module.exports = function insightsRoutes(db) {
     if (!txn) {
       return res.status(404).json({ error: `No transaction found with id "${req.params.txnId}".` });
     }
+    if (!canAccessCustomer(req, txn.userId)) return forbidCustomer(res);
 
     const user = findUser(ctx, txn.userId) || null;
     const list = ctx.byUser.get(txn.userId) || [];
@@ -510,7 +555,7 @@ module.exports = function insightsRoutes(db) {
         categoryName: category.name,
         categoryGroup: category.group
       },
-      risk: {
+      risk: forUser(req, {
         status: score.status,
         level: score.level,
         score: score.score,
@@ -522,7 +567,7 @@ module.exports = function insightsRoutes(db) {
         shareOfLifetimeSpend: score.shareOfLifetimeSpend,
         deviationFromAverage: score.zScore,
         bands: { low: `0-${engine.CONFIG.RISK_MEDIUM_AT - 1}`, medium: `${engine.CONFIG.RISK_MEDIUM_AT}-${engine.CONFIG.RISK_HIGH_AT - 1}`, high: `${engine.CONFIG.RISK_HIGH_AT}-100` }
-      },
+      }),
       context: {
         customerAverageTransaction: profile.averageTransaction,
         customerTransactionCount: profile.totalTransactions,
@@ -535,7 +580,7 @@ module.exports = function insightsRoutes(db) {
   // -------------------------------------------------------------------------
   // GET /api/insights/customers  (selector helper for the UI)
   // -------------------------------------------------------------------------
-  router.get('/customers', (req, res) => {
+  router.get('/customers', requireAdmin, (req, res) => {
     const rows = db
       .prepare(
         `SELECT u.user_id AS id, u.user_name AS name,

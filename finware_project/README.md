@@ -15,9 +15,11 @@ finware/
 ├── server.js                    Express entry point (serves the API + the frontend)
 ├── src/
 │   ├── db.js                    Opens/creates data/finware.sqlite, seeds it on first run
-│   ├── middleware/auth.js       JWT verification
+│   ├── middleware/auth.js       JWT verification, DB-backed sessions, requireRole/requireAdmin
+│   ├── admin-content/           Admin-only content (ML model details), served via /api/admin/model-info
 │   └── routes/
-│       ├── auth.routes.js       POST /api/auth/login, GET /api/auth/me
+│       ├── auth.routes.js       POST /api/auth/login|register, GET/PATCH /api/auth/me
+│       ├── admin.routes.js      Admin-only: /api/admin/users, /api/admin/model-info
 │       ├── warehouse.routes.js  GET /api/warehouse/all, /api/warehouse/source/:table
 │       └── analytics.routes.js  Real SQL demonstrating Star / Snowflake / Galaxy queries
 ├── database/
@@ -32,7 +34,7 @@ finware/
 
 ## Requirements
 
-- Node.js 18 or later
+- Node.js 22.13 or later (uses the built-in `node:sqlite` module)
 - No separate database server needed — it uses SQLite via `better-sqlite3`
   (a single file at `data/finware.sqlite`, created automatically).
 
@@ -48,10 +50,14 @@ finware/
    npm start
    ```
    (or `npm run dev` to auto-restart on file changes)
-4. Open **http://localhost:4000** in your browser.
-5. Sign in with the seeded demo account:
+4. Open **http://localhost:4000/admin** to sign in as an administrator with the
+   seeded demo account:
    - **Email:** `admin@finware.com`
    - **Password:** `finware2026`
+5. Open **http://localhost:4000/** for the customer (user) sign-in and
+   self-service registration.
+
+Run the automated tests with `npm test` (uses a throwaway database).
 
 The first time you start the server it creates `data/finware.sqlite` and seeds
 it with the sample dataset. Delete that file (or the whole `data/` folder) and
@@ -107,13 +113,48 @@ curl http://localhost:4000/api/analytics/galaxy/cross-process \
   -H "Authorization: Bearer $TOKEN"
 ```
 
+## Roles and access control
+
+There are two roles, stored in `app_users.role` and enforced by the database
+(`CHECK`/triggers allow only `admin` or `user`):
+
+| | Admin (`/admin`) | User (`/`) |
+|---|---|---|
+| Sign-in | Admin portal only | User portal only; self-registration |
+| Data | All warehouse records, analytics, portfolio insights | Only the warehouse customer linked to the account (`app_users.customer_id`) |
+| Admin features | Dashboard, analytics, reports, user management, ML model details | None (403 from the API, "Access denied" in the UI) |
+
+- **Role is decided by the server.** Registration always creates a `user`;
+  any `role`/`customerId` in the request is ignored. The JWT only carries the
+  account id — every protected request reloads the account from the database,
+  so role changes, customer re-links and deleted accounts take effect
+  immediately.
+- **Linking users to data.** A newly registered user sees no records until an
+  admin links the account to a warehouse customer on **User Management**
+  (one account per customer). Users can't pick their own customer, so nobody
+  can claim someone else's data.
+- **Object-level checks.** `/api/insights/customer/:id/*` and
+  `/api/insights/transaction/:id/risk` return 403 for records outside the
+  user's linked customer. User responses omit scoring internals (baselines,
+  bands), and ML model details are only served by the admin-only
+  `/api/admin/model-info` endpoint — they are no longer in `public/`.
+- **Upgrading an existing database.** On start-up `src/db.js` adds the new
+  columns and converts the old free-text role (e.g. "Data Warehouse
+  Administrator") to `admin`, keeping the text as `title`. Existing
+  credentials keep working; no new default accounts are created.
+- Admins can't demote or delete themselves if that would leave no admin.
+
 ## Known limitations (by design, for an honest lab demo)
 
 - The sample dataset is intentionally the same 5 rows per table from the
   practical, so month-over-month/seasonal trend views only show one week of
   data — the Time Analysis page says so directly rather than faking history.
-- The admin account is seeded once at first run; there's no sign-up flow
-  (matches the proposal's single-admin Login page).
+- The admin account is seeded once at first run with the demo password
+  above — change it (or remove the seed) before deploying anywhere real.
+- Tokens are stored in `localStorage` and expire after 8 hours; "log out"
+  discards the token client-side (there is no server-side token revocation
+  list, but deleting or changing an account takes effect immediately).
+- There is no login rate limiting yet.
 - `JWT_SECRET` defaults to a placeholder in dev — set a real one in `.env`
   before putting this anywhere other than your own machine.
 

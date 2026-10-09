@@ -437,7 +437,34 @@ input:checked + .slider-toggle:before{transform:translateX(18px);}
   .date-badge{display:none;}
   .insight-metrics{grid-template-columns:1fr;}
   .analysis-range{white-space:normal;}
-}\n\n/* ============================================================\n   ABOUT / ML MODEL\n   ============================================================ */\n.about-hero { padding: 28px; margin-bottom: 18px; }\n.about-hero h2 { margin: 6px 0 10px; font-size: 25px; }\n.about-hero p, .about-text { color: var(--muted); line-height: 1.7; margin: 0; }\n.eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--primary); }\n.about-note { margin-top: 18px; padding: 13px 15px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); font-size: 13px; line-height: 1.55; color: var(--muted); }\n.about-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 18px; margin-bottom: 18px; }\n.model-badge, .synthetic-badge { font-size: 11px; font-weight: 700; padding: 5px 9px; border-radius: 999px; background: var(--surface-2); color: var(--primary); }\n.about-points { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }\n.about-points div { padding: 13px; border: 1px solid var(--border); border-radius: 10px; }\n.about-points strong { display: block; font-size: 12px; margin-bottom: 5px; }\n.about-points span { color: var(--muted); font-size: 12px; line-height: 1.5; }\n.feature-list { display: grid; gap: 9px; }\n.feature-list div { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 13px; }\n.feature-list span { width: 25px; font-size: 10px; font-weight: 800; color: var(--primary); }\n.model-table td:first-child { font-weight: 700; }\n.ml-metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }\n.ml-metrics div { padding: 16px; border: 1px solid var(--border); border-radius: 10px; text-align: center; }\n.ml-metrics span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 6px; }\n.ml-metrics strong { font-size: 21px; }\n.metric-explain { padding: 13px 15px; border-radius: 10px; background: var(--surface-2); color: var(--muted); font-size: 12px; line-height: 1.55; }\n@media (max-width: 900px) { .about-grid { grid-template-columns: 1fr; } .ml-metrics { grid-template-columns: repeat(3, 1fr); } }\n@media (max-width: 600px) { .about-points { grid-template-columns: 1fr; } .ml-metrics { grid-template-columns: repeat(2, 1fr); } }\n
+}
+
+/* ============================================================
+   ABOUT / ML MODEL
+   ============================================================ */
+.about-hero { padding: 28px; margin-bottom: 18px; }
+.about-hero h2 { margin: 6px 0 10px; font-size: 25px; }
+.about-hero p, .about-text { color: var(--muted); line-height: 1.7; margin: 0; }
+.eyebrow { font-size: 11px; font-weight: 800; letter-spacing: .12em; color: var(--primary); }
+.about-note { margin-top: 18px; padding: 13px 15px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface-2); font-size: 13px; line-height: 1.55; color: var(--muted); }
+.about-grid { display: grid; grid-template-columns: 1.25fr .75fr; gap: 18px; margin-bottom: 18px; }
+.model-badge, .synthetic-badge { font-size: 11px; font-weight: 700; padding: 5px 9px; border-radius: 999px; background: var(--surface-2); color: var(--primary); }
+.about-points { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-top: 18px; }
+.about-points div { padding: 13px; border: 1px solid var(--border); border-radius: 10px; }
+.about-points strong { display: block; font-size: 12px; margin-bottom: 5px; }
+.about-points span { color: var(--muted); font-size: 12px; line-height: 1.5; }
+.feature-list { display: grid; gap: 9px; }
+.feature-list div { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border: 1px solid var(--border); border-radius: 9px; font-size: 13px; }
+.feature-list span { width: 25px; font-size: 10px; font-weight: 800; color: var(--primary); }
+.model-table td:first-child { font-weight: 700; }
+.ml-metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 12px; margin-bottom: 16px; }
+.ml-metrics div { padding: 16px; border: 1px solid var(--border); border-radius: 10px; text-align: center; }
+.ml-metrics span { display: block; color: var(--muted); font-size: 11px; margin-bottom: 6px; }
+.ml-metrics strong { font-size: 21px; }
+.metric-explain { padding: 13px 15px; border-radius: 10px; background: var(--surface-2); color: var(--muted); font-size: 12px; line-height: 1.55; }
+@media (max-width: 900px) { .about-grid { grid-template-columns: 1fr; } .ml-metrics { grid-template-columns: repeat(3, 1fr); } }
+@media (max-width: 600px) { .about-points { grid-template-columns: 1fr; } .ml-metrics { grid-template-columns: repeat(2, 1fr); } }
+
 /* ============================================================
    CATCHY ABOUT / ML INFOGRAPHIC
    ============================================================ */
@@ -490,3 +517,19 @@ input:checked + .slider-toggle:before{transform:translateX(18px);}
 .stat-orange { color:#d97706; background:linear-gradient(145deg,rgba(217,119,6,.07),var(--surface)); }
 @media (max-width: 900px) { .ml-flow { grid-template-columns: 1fr; } .flow-arrow { transform: rotate(90deg); justify-self:center; } .about-stat-grid { grid-template-columns: repeat(2,1fr); } }
 @media (max-width: 600px) { .about-stat-grid { grid-template-columns: 1fr; } .about-hero-copy h2 { font-size:24px; } .anomaly-strip { align-items:flex-start; flex-wrap:wrap; } }
+
+/* ============================================================
+   ROLE-BASED ACCESS
+   ============================================================ */
+.auth-panel[hidden]{display:none;}
+.login-hint a{color:#9db2ff; text-decoration:none;}
+.login-hint a:hover{text-decoration:underline;}
+.login-hint + .login-hint{margin-top:8px;}
+.portal-badge{display:inline-block; font-size:11px; font-weight:700; letter-spacing:.08em; text-transform:uppercase; color:#ffd28a; background:rgba(224,152,47,.15); border:1px solid rgba(224,152,47,.4); padding:3px 9px; border-radius:20px; margin-bottom:12px;}
+.notice-card{margin-bottom:18px;}
+.notice-card h3{margin-bottom:6px;}
+.notice-card p{color:var(--text-muted); font-size:13.5px; line-height:1.6; margin-bottom:12px;}
+.denied-card{max-width:520px; margin:40px auto; text-align:center; padding:32px;}
+.admin-users-select{padding:6px 8px; border-radius:7px; border:1px solid var(--border); background:var(--card-bg); color:var(--text-primary); font-size:12.5px;}
+.badge.role-admin{background:var(--violet-soft); color:var(--violet);}
+.badge.role-user{background:var(--accent-soft); color:var(--accent);}

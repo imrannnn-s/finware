@@ -1,0 +1,101 @@
+<!-- Admin-only. Served by GET /api/admin/model-info; never place this in public/. -->
+        <div class="page-header">
+          <div><h1>About FinWare &amp; ML Model</h1><div class="sub">How one classification model can support both spending behaviour and financial risk indicators.</div></div>
+        </div>
+
+        <div class="about-hero card about-hero-visual">
+          <div class="about-hero-copy">
+            <div class="eyebrow">FINWARE INTELLIGENCE</div>
+            <h2>Turn transactions into smarter financial insights</h2>
+            <p>One shared <strong>Random Forest Classifier</strong> reads customer transaction patterns to estimate both <strong>spending behaviour</strong> and a <strong>financial risk indicator</strong>. A separate <strong>Isolation Forest</strong> flags unusual transactions.</p>
+            <div class="about-note"><strong>Demo data notice:</strong> Evaluation values in this page are <strong>synthetic / illustrative</strong> because the original model-training notebook was unavailable.</div>
+          </div>
+          <div class="ml-flow">
+            <div class="flow-node flow-input"><span class="flow-icon">▦</span><strong>Transactions</strong><small>Amounts • frequency • categories</small></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-node flow-model"><span class="flow-icon">◎</span><strong>Random Forest</strong><small>Shared classifier</small></div>
+            <div class="flow-arrow">→</div>
+            <div class="flow-outputs">
+              <div class="flow-output spending"><span>↗</span><strong>Spending</strong><b>Low · Medium · High</b></div>
+              <div class="flow-output risk"><span>◈</span><strong>Risk</strong><b>Low · Medium · High</b></div>
+            </div>
+          </div>
+          <div class="anomaly-strip"><span class="anomaly-dot"></span><strong>Isolation Forest</strong><span>separately detects unusual transaction patterns</span></div>
+        </div>
+
+        <div class="about-stat-grid">
+          <div class="about-stat stat-blue"><span>MODEL TYPE</span><strong>Classification</strong><small>Multi-class • 3 levels</small></div>
+          <div class="about-stat stat-purple"><span>SHARED OUTPUTS</span><strong>2 indicators</strong><small>Spending + financial risk</small></div>
+          <div class="about-stat stat-green"><span>ILLUSTRATIVE ACCURACY</span><strong>91.8%</strong><small>Random Forest demo metric</small></div>
+          <div class="about-stat stat-orange"><span>ANOMALY MODEL</span><strong>Isolation Forest</strong><small>Unsupervised detection</small></div>
+        </div>
+
+        <div class="about-grid">
+          <div class="card">
+            <div class="card-header"><h3>Shared classification model</h3><span class="model-badge">Random Forest</span></div>
+            <p class="about-text"><strong>Random Forest Classifier</strong> is used as the shared classification model for both customer spending behaviour and the financial risk indicator. It can capture non-linear relationships between spending amount, frequency, transaction patterns and financial behaviour without requiring a linear relationship between the features and the class.</p>
+            <div class="about-points">
+              <div><strong>Problem type</strong><span>Multi-class classification</span></div>
+              <div><strong>Outputs</strong><span>Spending: Low / Medium / High &nbsp; • &nbsp; Risk: Low / Medium / High</span></div>
+              <div><strong>Why Random Forest?</strong><span>Handles non-linear patterns, interactions and noisy transaction features well.</span></div>
+              <div><strong>Interpretability</strong><span>Feature importance can show which transaction patterns influence both outputs.</span></div>
+              <div><strong>Shared model benefit</strong><span>One consistent feature set and classifier supports both behaviour and risk indicators.</span></div>
+            </div>
+          </div>
+
+          <div class="card">
+            <div class="card-header"><h3>Input features</h3><span class="muted">Customer-level aggregates</span></div>
+            <div class="feature-list">
+              <div><span>01</span>Total spending</div><div><span>02</span>Average transaction amount</div><div><span>03</span>Transaction frequency</div><div><span>04</span>Category diversity</div><div><span>05</span>Debit-to-credit ratio</div><div><span>06</span>Spending trend / change</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Model hyperparameters</h3><span class="muted">Synthetic project configuration</span></div>
+          <div class="table-scroll"><table class="model-table"><thead><tr><th>Parameter</th><th>Value</th><th>Purpose</th></tr></thead><tbody>
+            <tr><td>n_estimators</td><td>200</td><td>Number of decision trees in the forest</td></tr>
+            <tr><td>max_depth</td><td>8</td><td>Limits tree complexity and helps reduce overfitting</td></tr>
+            <tr><td>min_samples_split</td><td>5</td><td>Minimum samples required to split an internal node</td></tr>
+            <tr><td>min_samples_leaf</td><td>2</td><td>Minimum samples allowed in a leaf node</td></tr>
+            <tr><td>class_weight</td><td>balanced</td><td>Helps handle unequal class frequencies</td></tr>
+            <tr><td>random_state</td><td>42</td><td>Makes the synthetic experiment reproducible</td></tr>
+          </tbody></table></div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Evaluation results — shared classifier</h3><span class="synthetic-badge">Synthetic / illustrative</span></div>
+          <div class="ml-metrics">
+            <div><span>Accuracy</span><strong>91.8%</strong></div><div><span>Precision</span><strong>91.7%</strong></div><div><span>Recall</span><strong>91.5%</strong></div><div><span>F1-Score</span><strong>91.6%</strong></div><div><span>CV Accuracy</span><strong>90.9%</strong></div><div><span>ROC-AUC</span><strong>0.94</strong></div>
+          </div>
+          <div class="metric-explain"><strong>About R-score:</strong> R² (R-squared) is primarily a regression metric and is not appropriate for these three-class classification outputs. Therefore, accuracy, precision, recall, F1-score and ROC-AUC are reported. These figures are synthetic and illustrate the expected evaluation format for the shared classifier.</div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Anomaly detection model</h3><span class="model-badge">Isolation Forest</span></div>
+          <p class="about-text"><strong>Isolation Forest</strong> is used as the anomaly-detection model because transaction anomalies usually do not have reliable labelled examples. It isolates observations that are rare or substantially different from normal customer spending patterns, making it suitable for unusual amount, frequency and category behaviour.</p>
+          <div class="about-grid" style="margin-top:18px; margin-bottom:0;">
+            <div>
+              <h4 style="margin:0 0 12px;">Hyperparameters</h4>
+              <div class="table-scroll"><table class="model-table"><thead><tr><th>Parameter</th><th>Value</th><th>Purpose</th></tr></thead><tbody>
+                <tr><td>n_estimators</td><td>200</td><td>Number of isolation trees</td></tr>
+                <tr><td>contamination</td><td>0.05</td><td>Expected proportion of anomalous transactions</td></tr>
+                <tr><td>max_samples</td><td>auto</td><td>Uses an appropriate sample size for each tree</td></tr>
+                <tr><td>random_state</td><td>42</td><td>Reproducible results</td></tr>
+              </tbody></table></div>
+            </div>
+            <div>
+              <h4 style="margin:0 0 12px;">Synthetic evaluation</h4>
+              <div class="ml-metrics" style="grid-template-columns:repeat(2,1fr);">
+                <div><span>Precision</span><strong>89.0%</strong></div><div><span>Recall</span><strong>86.0%</strong></div>
+                <div><span>F1-Score</span><strong>87.5%</strong></div><div><span>ROC-AUC</span><strong>0.92</strong></div>
+              </div>
+              <div class="metric-explain"><strong>Why these metrics?</strong> Accuracy can be misleading for anomaly detection because anomalies are usually a small minority. Precision, recall, F1-score and ROC-AUC better describe how effectively unusual transactions are identified.</div>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-header"><h3>Why classification for both spending and risk?</h3></div>
+          <p class="about-text">FinWare is not trying to predict an exact rupee value. It needs to assign customers to meaningful categories. Therefore, <strong>multi-class classification</strong> is appropriate for both outputs. The same transaction-derived features can be used to classify spending behaviour and financial risk into Low, Medium and High categories, keeping the recommendation and risk views consistent. In an actual deployment, the Random Forest would be trained on labelled customer data; the values shown in this interface are synthetic because the original training notebook is unavailable.</p>
+        </div>

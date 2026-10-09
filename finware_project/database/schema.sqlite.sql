@@ -113,12 +113,18 @@ CREATE TABLE IF NOT EXISTS fact_ca_sessions (
 );
 
 -- ---------- App auth (separate from the warehouse itself) ----------
+-- role is 'admin' or 'user' (enforced by triggers created in src/db.js, which
+-- also migrates older databases). customer_id links a 'user' login to the
+-- warehouse customer whose records it may see; only an admin can set it.
 CREATE TABLE IF NOT EXISTS app_users (
   id            INTEGER PRIMARY KEY AUTOINCREMENT,
   email         TEXT NOT NULL UNIQUE,
   password_hash TEXT NOT NULL,
   name          TEXT NOT NULL,
-  role          TEXT NOT NULL
+  role          TEXT NOT NULL CHECK (role IN ('admin','user')),
+  title         TEXT,
+  customer_id   TEXT REFERENCES dim_user(user_id) ON DELETE SET NULL,
+  created_at    TEXT DEFAULT (datetime('now'))
 );
 
 CREATE INDEX IF NOT EXISTS idx_fact_txn_date ON fact_transactions(date_id);
